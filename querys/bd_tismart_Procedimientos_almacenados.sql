@@ -8,8 +8,7 @@ CREATE OR REPLACE PROCEDURE SP_HOSPITAL_REGISTRAR (
     p_area IN NUMBER,
     p_idSede IN NUMBER,
     p_idGerente IN NUMBER,
-    p_idCondicion IN NUMBER,
-    p_mensaje OUT VARCHAR2
+    p_idCondicion IN NUMBER
 ) IS
 
 v_idHospital number;
@@ -24,18 +23,22 @@ BEGIN
     -- Condicion y manejo de errores
     IF v_idHospital = 0 THEN
         -- El ID del hospital no existe, se puede insertar el nuevo registro
-        INSERT INTO Hospital (idHospital, idDistrito, nombre, antiguedad, area, idSede, idGerente, idCondicion, fechaRegistro)
-        VALUES (p_idHospital, p_idDistrito,p_nombre, p_antiguedad, p_area,p_idSede,p_idGerente, p_idCondicion, SYSDATE);
-        p_mensaje := 'Nuevo registro de hospital registrado correctamente';
+        IF p_idHospital >= 0 THEN
+            INSERT INTO Hospital (idHospital, idDistrito, nombre, antiguedad, area, idSede, idGerente, idCondicion, fechaRegistro)
+            VALUES (p_idHospital, p_idDistrito,p_nombre, p_antiguedad, p_area,p_idSede,p_idGerente, p_idCondicion, SYSDATE);
+            DBMS_OUTPUT.PUT_LINE('Nuevo registro de hospital registrado correctamente');
+        ELSE
+            DBMS_OUTPUT.PUT_LINE('El ID del hospital no puede ser negativo.');
+        END IF;
     ELSE
         -- Manejo de error si no cumple el if:
-        p_mensaje := 'El ID del hospital ya existe';
+        DBMS_OUTPUT.PUT_LINE('El ID del hospital ya existe');
     END IF;
 EXCEPTION
     WHEN OTHERS THEN
-        p_mensaje :=('Error al registrar en la tabla hospital'||slt_ln||
-        'Codigo de error: '||SQLCODE||slt_ln||
-        'Detalle del error: '||SQLERRM);
+        DBMS_OUTPUT.PUT_LINE('Error al registrar en la tabla hospital');
+        DBMS_OUTPUT.PUT_LINE('Codigo de error: '||SQLCODE);
+        DBMS_OUTPUT.PUT_LINE('Detalle del error: '||SQLERRM);
 END;
 
 -- -----------------
@@ -46,33 +49,48 @@ END;
 -- Actualizar registros del hospital como gerente, condición, sede y distrito.
 
 CREATE OR REPLACE PROCEDURE SP_HOSPITAL_ACTUALIZAR (
-    p_idHospital IN NUMBER,
-    p_idGerente IN NUMBER,
-    p_idCondicion IN NUMBER,
-    p_idSede IN NUMBER,
-    p_idDistrito IN NUMBER,
-    p_mensaje OUT VARCHAR2
+   p_idHospital IN NUMBER,
+   p_idGerente IN NUMBER,
+   p_idCondicion IN NUMBER,
+   p_idSede IN NUMBER,
+   p_idDistrito IN NUMBER,
+   p_mensaje OUT VARCHAR2
 )
 IS
-slt_ln varchar(1):=chr(10);
+  l_count NUMBER;
+  slt_ln varchar(1):=chr(10);
 BEGIN
-    -- Actualiza los registros del hospital con los nuevos valores proporcionados.
-    UPDATE Hospital
-    SET idGerente = p_idGerente,
-        idCondicion = p_idCondicion,
-        idSede = p_idSede,
-        idDistrito = p_idDistrito
-    WHERE idHospital = p_idHospital;
-    
-    COMMIT; -- Confirmar los cambios en la base de datos.
-    
-    p_mensaje := 'Registros del hospital actualizados correctamente.';
+  -- Verifica si el ID del hospital existe y si los datos son válidos
+  SELECT COUNT(*)
+  INTO l_count
+  FROM Hospital
+  WHERE idHospital = p_idHospital;
+
+  IF l_count = 0 THEN
+    p_mensaje := 'El ID del hospital no existe.';
+  ELSE
+    IF p_idGerente IS NULL OR p_idCondicion IS NULL OR p_idSede IS NULL OR p_idDistrito IS NULL THEN
+      p_mensaje := 'Los datos del hospital no pueden ser nulos.';
+    ELSE
+      -- Actualiza el registro del hospital
+      UPDATE Hospital
+      SET idGerente = p_idGerente,
+       idCondicion = p_idCondicion,
+       idSede = p_idSede,
+       idDistrito = p_idDistrito
+      WHERE idHospital = p_idHospital;
+
+      COMMIT; -- Confirmar los cambios en la base de datos.
+
+      p_mensaje := 'Registros del hospital actualizados correctamente.';
+    END IF;
+  END IF;
 EXCEPTION
-    WHEN OTHERS THEN
-        ROLLBACK; -- Deshacer los cambios si ocurre algún error.
-        p_mensaje :=('Error al actualizar el registro en la tabla hospital'||slt_ln||
-        'Codigo de error: '||SQLCODE||slt_ln||
-        'Detalle del error: '||SQLERRM);
+  WHEN OTHERS THEN
+    ROLLBACK; -- Deshacer los cambios si ocurre algún error.
+    p_mensaje := 'Error al actualizar el registro en la tabla hospital';
+    DBMS_OUTPUT.PUT_LINE('Codigo de error: '||SQLCODE);
+    DBMS_OUTPUT.PUT_LINE('Detalle del error: '||SQLERRM);
 END;
 
 
@@ -83,25 +101,36 @@ END;
 -- SP_HOSPITAL_ELIMINAR 
 -- Eliminar hospitales, por IdHospital.
 CREATE OR REPLACE PROCEDURE SP_HOSPITAL_ELIMINAR (
-    p_idHospital IN NUMBER,
-    p_mensaje OUT VARCHAR2
+   p_idHospital IN NUMBER,
+   p_mensaje OUT VARCHAR2
 )
 IS
-slt_ln varchar(1):=chr(10);
+  l_count NUMBER;
+  slt_ln varchar(1):=chr(10);
 BEGIN
+  -- Verifica si el ID del hospital existe
+  SELECT COUNT(*)
+  INTO l_count
+  FROM Hospital
+  WHERE idHospital = p_idHospital;
+
+  IF l_count = 0 THEN
+    p_mensaje := 'El ID del hospital no existe.';
+  ELSE
     -- Elimina el hospital con el IdHospital proporcionado.
     DELETE FROM Hospital
     WHERE idHospital = p_idHospital;
-    
+
     COMMIT; -- Confirmar los cambios en la base de datos.
-    
-    p_mensaje :='Hospital eliminado correctamente.';
+
+    p_mensaje := 'Hospital eliminado correctamente.';
+  END IF;
 EXCEPTION
-    WHEN OTHERS THEN
-        ROLLBACK; -- Deshacer los cambios si ocurre algún error.
-        p_mensaje :=('Error al eliminar hospital'||slt_ln||
-        'Codigo de error: '||SQLCODE||slt_ln||
-        'Detalle del error: '||SQLERRM);
+  WHEN OTHERS THEN
+    ROLLBACK; -- Deshacer los cambios si ocurre algún error.
+    p_mensaje := 'Error al eliminar hospital';
+    DBMS_OUTPUT.PUT_LINE('Codigo de error: '||SQLCODE);
+    DBMS_OUTPUT.PUT_LINE('Detalle del error: '||SQLERRM);
 END;
 
 
@@ -132,9 +161,9 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE('ESTADO: SOLICITUD ACEPTADA');
 EXCEPTION
     WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Error al listar hospitales'||slt_ln||
-        'Codigo de error: '||SQLCODE||slt_ln||
-        'Detalle del error: '||SQLERRM);
+        DBMS_OUTPUT.PUT_LINE('Error al listar hospitales');
+        DBMS_OUTPUT.PUT_LINE('Codigo de error: '||SQLCODE);
+        DBMS_OUTPUT.PUT_LINE('Detalle del error: '||SQLERRM);
 END;
 
 commit;
