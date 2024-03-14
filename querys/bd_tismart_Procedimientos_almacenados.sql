@@ -141,29 +141,41 @@ END;
 -- PROCEDURE 2D:
 -- SP_HOSPITAL_LISTAR 
 -- Realizar una lista dinámica.
-CREATE OR REPLACE PROCEDURE SP_HOSPITAL_LISTAR
+CREATE OR REPLACE PROCEDURE SP_HOSPITAL_LISTAR (
+    p_nombre IN VARCHAR2 DEFAULT NULL,
+    p_nombre_gerente IN VARCHAR2 DEFAULT NULL,
+    p_desc_condicion IN VARCHAR2 DEFAULT NULL,
+    p_desc_distrito IN VARCHAR2 DEFAULT NULL,
+    p_desc_sede IN VARCHAR2 DEFAULT NULL,
+    p_fecha_registro IN DATE DEFAULT NULL,
+    p_resultado OUT SYS_REFCURSOR
+)
 IS
-slt_ln varchar(1):=chr(10);
-    CURSOR c_hospitales IS
+BEGIN
+    -- Inicializar el cursor de resultado
+    OPEN p_resultado FOR
         SELECT h.idHospital, h.nombre, h.antiguedad, h.area, g.descGerente, c.descCondicion, s.descSede, d.descDistrito
         FROM Hospital h
         INNER JOIN Gerente g ON h.idGerente = g.idGerente
         INNER JOIN Condicion c ON h.idCondicion = c.idCondicion
         INNER JOIN Sede s ON h.idSede = s.idGerente
-        INNER JOIN Distrito d ON h.idDistrito = d.idDistrito;
-BEGIN
-    -- Imprime la lista de hospitales.
-    DBMS_OUTPUT.PUT_LINE('------- LISTA DE HOSPITALES -------');
-    FOR hospital IN c_hospitales LOOP
-        DBMS_OUTPUT.PUT_LINE('- '|| hospital.nombre || ': Antigüedad - ' || hospital.antiguedad ||
-        ' años. Área: ' || hospital.area ||'m2.'||slt_ln||'Gerente: ' || hospital.descGerente || '. Condición: ' || hospital.descCondicion || '. Sede: ' || hospital.descSede || '- Distrito: ' || hospital.descDistrito||slt_ln);
-    END LOOP;
-    DBMS_OUTPUT.PUT_LINE('ESTADO: SOLICITUD ACEPTADA');
+        INNER JOIN Distrito d ON h.idDistrito = d.idDistrito
+        WHERE (p_nombre IS NULL OR h.nombre LIKE '%' || p_nombre || '%')
+        AND (p_nombre_gerente IS NULL OR g.descGerente LIKE '%' || p_nombre_gerente || '%')
+        AND (p_desc_condicion IS NULL OR c.descCondicion LIKE '%' || p_desc_condicion || '%')
+        AND (p_desc_distrito IS NULL OR d.descDistrito LIKE '%' || p_desc_distrito || '%')
+        AND (p_desc_sede IS NULL OR s.descSede LIKE '%' || p_desc_sede || '%')
+        AND (p_fecha_registro IS NULL OR h.fechaRegistro = p_fecha_registro);
+        
+        -- Registrar éxito en la consola
+        DBMS_OUTPUT.PUT_LINE('Procedimiento SP_HOSPITAL_LISTAR ejecutado correctamente.');
 EXCEPTION
-    WHEN OTHERS THEN
-        DBMS_OUTPUT.PUT_LINE('Error al listar hospitales');
-        DBMS_OUTPUT.PUT_LINE('Codigo de error: '||SQLCODE);
-        DBMS_OUTPUT.PUT_LINE('Detalle del error: '||SQLERRM);
+    -- Manejar cualquier excepción
+    WHEN others THEN
+        -- Registrar error en la consola
+        DBMS_OUTPUT.PUT_LINE('Error al ejecutar SP_HOSPITAL_LISTAR: ' || SQLCODE || ' - ' || SQLERRM);
+        -- Propagar la excepción para que pueda ser manejada en el nivel superior
+        RAISE;
 END;
 
 commit;
